@@ -2,11 +2,28 @@ ROOT_URL = 'https://yugioh.wikia.com/'
 var DEBUG = console.log
 
 function capitalizeWord(word) {
-    return word.charAt(0).toUpperCase() + word.slice(1)
+    word = word.toLowerCase();
+    var capitalised = word.charAt(0).toUpperCase() + word.slice(1)
+    filterlist = [
+        'the',
+        'of'
+    ]
+    if (filterlist.indexOf(word) == -1) {
+        return capitalised
+    } else {
+        return word
+    }
 }
 
 function parseMsg(text) {
-    return text.split(' ').map(capitalizeWord).join(' ').replace(/ /g, '_')
+    text = text.toLowerCase()
+    text = text.replace('blue eyes', 'Blue-Eyes')
+    text = text.replace('odd eyes', 'Odd-Eyes')
+    text = text.replace('azure eyes', 'Azure-Eyes')
+    text = text.replace('galaxy eyes', 'Galaxy-Eyes')
+    text = text.replace('red eyes', 'Red-Eyes')
+    text = text.split(' ').map(capitalizeWord).join('_')
+    return text
 }
 
 function getFile(data) {
@@ -91,10 +108,10 @@ function main() {
     bot.on('inlineQuery', msg => {
 
         let query = msg.query;
-        DEBUG(query)
         var card = parseMsg(query)
+        console.log(card)
         // Create a new answer list object
-        const answers = bot.answerList(msg.id, { cacheTime: 60 });
+        const answers = bot.answerList(msg.id, { cacheTime: 1 });
         getUrl(card, (response) => {
             if (response != undefined) {
                 answers.addPhoto({
