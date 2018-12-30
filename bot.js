@@ -1,13 +1,18 @@
+ROOT_URL = 'https://yugioh.wikia.com/'
+var DEBUG = console.log
+
 function capitalizeWord(word) {
     return word.charAt(0).toUpperCase() + word.slice(1)
 }
 
-function parseMsg(json) {
-    text = json.text
+function parseMsg(text) {
     return text.split(' ').map(capitalizeWord).join(' ').replace(/ /g, '_')
 }
 
 function getFile(data) {
+    if (data.query == undefined) {
+        return undefined
+    }
     var images = Object.values(data.query.pages)[0].images
     if (images == undefined) {
         return undefined
@@ -40,11 +45,10 @@ function filterTitle(title) {
 }
 
 function getUrl(card, callback) {
-    const http = require('http')
+    const https = require('https')
     query = 'action=query&prop=images&format=json&titles=' + card
-    mainUrl = 'http://yugioh.wikia.com/'
-    url = mainUrl + 'api.php?' + query
-    http.get(url, function (res) {
+    url = ROOT_URL + 'api.php?' + query
+    https.get(url, function (res) {
         var body = ''
         res.on('data', function (chunk) {
             body += chunk
@@ -53,7 +57,7 @@ function getUrl(card, callback) {
             json = JSON.parse(body)
             file = getFile(json)
             if (file != undefined) {
-                var newUrl = mainUrl + file
+                var newUrl = ROOT_URL + file
                 callback(newUrl)
             } else {
                 callback(undefined)
@@ -63,32 +67,46 @@ function getUrl(card, callback) {
         console.log("Got an error: ", e)
     })
 }
+
 function main() {
-    const TelegramBot = require('node-telegram-bot-api')
-    const token = '738257035:AAHiT2x1zpybzKU091qCdGUXeuW4FF0PPmI'
-    const bot = new TelegramBot(token, { polling: true })
+    const TeleBot = require('telebot');
+    const bot = new TeleBot('783717472:AAEjVCHB9dJjoDwgRU5Riw8AwPyelnLt_k4');
+    bot.start();
+    bot.on(['/start', '/hello'], (msg) =>
+        msg.reply.text('Welcome! Use /card <card name> to find cards!'));
 
-    bot.onText(/\/echo (.+)/, (msg, match) => {
+    bot.on(/^\/card (.+)$/, (msg, props) => {
+        const text = props.match[1];
         const chatId = msg.chat.id
-        const resp = match[1]
-        bot.sendMessage(chatId, resp)
-    })
+        var card = parseMsg(text)
+        getUrl(card, (response) => {
+            if (response != undefined) {
+                bot.sendMessage(chatId, response)
+            } else {
+                bot.sendMessage(chatId, "No url found.")
+            }
+        })
+    });
 
-    bot.on('message', (msg) => {
-        try {
-            const chatId = msg.chat.id
-            var card = parseMsg(msg)
-            getUrl(card, (response) => {
-                if (response != undefined) {
-                    bot.sendMessage(chatId, response)
-                } else {
-                    bot.sendMessage(chatId, "No url found.")
-                }
-            })
-        } catch (err) {
-            console.log("Got an error: ", e)
-        }
-    })
+    bot.on('inlineQuery', msg => {
+
+        let query = msg.query;
+        DEBUG(query)
+        var card = parseMsg(query)
+        // Create a new answer list object
+        const answers = bot.answerList(msg.id, { cacheTime: 60 });
+        getUrl(card, (response) => {
+            if (response != undefined) {
+                answers.addPhoto({
+                    id: 'photo',
+                    caption: card,
+                    photo_url: response,
+                    thumb_url: response
+                });
+                return bot.answerQuery(answers);
+            }
+        })
+    });
 }
 
 main()
