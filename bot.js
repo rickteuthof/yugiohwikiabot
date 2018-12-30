@@ -85,9 +85,17 @@ function getUrl(card, callback) {
     })
 }
 
+function readToken() {
+    var fs = require('fs');
+    var contents = fs.readFileSync('TOKEN', 'utf8');
+    console.log(contents);
+    return contents
+}
+
 function main() {
     const TeleBot = require('telebot');
-    const bot = new TeleBot('783717472:AAEjVCHB9dJjoDwgRU5Riw8AwPyelnLt_k4');
+    const token = readToken()
+    const bot = new TeleBot(token);
     bot.start();
     bot.on(['/start', '/hello'], (msg) =>
         msg.reply.text('Welcome! Use /card <card name> to find cards!'));
