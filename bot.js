@@ -1,137 +1,100 @@
-ROOT_URL = 'https://yugioh.wikia.com/'
-var DEBUG = console.log
+API_URL = 'https://db.ygoprodeck.com/api/v2/cardinfo.php'
+PIC_URL = 'https://ygoprodeck.com/pics/'
 
-function capitalizeWord(word) {
-    word = word.toLowerCase();
-    var capitalised = word.charAt(0).toUpperCase() + word.slice(1)
-    filterlist = [
-        'the',
-        'of'
-    ]
-    if (filterlist.indexOf(word) == -1) {
-        return capitalised
-    } else {
-        return word
-    }
+
+/**
+ * Search for a keyword in the ygoprodeck database
+ */
+function search(keyword) {
+    return new Promise((resolve, reject) => {
+        const https = require('https');
+
+        let query = '?fname=' + keyword;
+        let url = API_URL + query;
+
+        let req = https.get(url, (res) => {
+            let body = '';
+
+            res.on('data', (chunk) => { body += chunk; });
+
+            res.on('end', () => { resolve(JSON.parse(body)); });
+
+        });
+
+        req.on('error', (err) => {
+            console.error(err);
+            reject(err);
+        });
+    });
 }
 
-function parseMsg(text) {
-    text = text.toLowerCase()
-    text = text.replace('blue eyes', 'Blue-Eyes')
-    text = text.replace('odd eyes', 'Odd-Eyes')
-    text = text.replace('azure eyes', 'Azure-Eyes')
-    text = text.replace('galaxy eyes', 'Galaxy-Eyes')
-    text = text.replace('red eyes', 'Red-Eyes')
-    text = text.split(' ').map(capitalizeWord).join('_')
-    return text
-}
 
-function getFile(data) {
-    if (data.query == undefined) {
-        return undefined
-    }
-    var images = Object.values(data.query.pages)[0].images
-    if (images == undefined) {
-        return undefined
-    }
-    for (var i = 0; i < images.length; i++) {
-        var title = images[i].title
-        if (!filterTitle(title)) {
-            return title
-        }
-    }
-}
-
-function filterTitle(title) {
-    filterList = [
-        "File:Ambox notice.png",
-        "File:CG Star.svg",
-        "File:Rank Star.svg",
-        "File:Pendulum Scale.png",
-        "File:Continuous.svg",
-        "File:Counter.svg",
-        "File:WATER.svg",
-        "File:EARTH.svg",
-        "File:FIRE.svg",
-        "File:WIND.svg",
-        "File:DARK.svg",
-        "File:LIGHT.svg",
-        "File:DIVINE.svg"
-    ]
-    return filterList.indexOf(title) != -1
-}
-
-function getUrl(card, callback) {
-    const https = require('https')
-    query = 'action=query&prop=images&format=json&titles=' + card
-    url = ROOT_URL + 'api.php?' + query
-    https.get(url, function (res) {
-        var body = ''
-        res.on('data', function (chunk) {
-            body += chunk
-        })
-        res.on('end', function () {
-            json = JSON.parse(body)
-            file = getFile(json)
-            if (file != undefined) {
-                var newUrl = ROOT_URL + file
-                callback(newUrl)
-            } else {
-                callback(undefined)
-            }
-        })
-    }).on('error', function (e) {
-        console.log("Got an error: ", e)
-    })
-}
-
+/**
+ * Read the bot token from a file to avoid accidentally uploading it to Github
+ */
 function readToken() {
-    var fs = require('fs');
-    var contents = fs.readFileSync('TOKEN', 'utf8');
-    console.log(contents);
-    return contents
+    const fs = require('fs');
+    return fs.readFileSync('TOKEN', 'utf8').toString();
 }
+
 
 function main() {
+    // Init bot
     const TeleBot = require('telebot');
-    const token = readToken()
+    const token = readToken();
     const bot = new TeleBot(token);
-    bot.start();
-    bot.on(['/start', '/hello'], (msg) =>
-        msg.reply.text('Welcome! Use /card <card name> to find cards!'));
 
-    bot.on(/^\/card (.+)$/, (msg, props) => {
-        const text = props.match[1];
-        const chatId = msg.chat.id
-        var card = parseMsg(text)
-        getUrl(card, (response) => {
-            if (response != undefined) {
-                bot.sendMessage(chatId, response)
-            } else {
-                bot.sendMessage(chatId, "No url found.")
-            }
-        })
+    // Start polling to accept commands
+    bot.start();
+
+
+    // Simple greeting
+    bot.on(['/start', '/hello'], (msg) => {
+        msg.reply.text('Welcome! Use the inline function to find cards!');
     });
 
-    bot.on('inlineQuery', msg => {
 
-        let query = msg.query;
-        var card = parseMsg(query)
-        console.log(card)
+    // If used like @ygowikibot <query>
+    bot.on('inlineQuery', (msg) => {
         // Create a new answer list object
-        const answers = bot.answerList(msg.id, { cacheTime: 1 });
-        getUrl(card, (response) => {
-            if (response != undefined) {
-                answers.addPhoto({
-                    id: 'photo',
-                    caption: card,
-                    photo_url: response,
-                    thumb_url: response
-                });
-                return bot.answerQuery(answers);
+        const answers = bot.answerList(msg.id, { cacheTime: 60 });
+
+        // Search for the given query
+        let query = msg.query;
+        return search(query).then((response) => {
+            // Don't continue if no response was given
+            if (!(Array.isArray(response) && response.length > 0)) {
+                return;
             }
-        })
+
+            const items = response[0];
+
+            // Show at most 10 items
+            let length = Math.min(10, items.length);
+
+            for (let i = 0; i < length; i++) {
+                // Extract fields from item
+                let id = items[i].id;
+                let name = items[i].name;
+                let url = PIC_URL + id + '.jpg';
+
+                // Generate photo object and prepare to get send
+                answers.addPhoto({
+                    id: id,
+                    caption: name,
+                    photo_url: url,
+                    thumb_url: url,
+                });
+            }
+
+            // DEBUG: Log answers
+            console.log(answers);
+
+            // Send all answers
+            return bot.answerQuery(answers);
+        });
     });
 }
 
-main()
+
+main();
