@@ -14,6 +14,8 @@ const https = require('https');
 const fs = require('fs');
 const TeleBot = require('telebot');
 
+let caching = false;
+
 
 /**
  * Search for a keyword in the ygoprodeck database
@@ -74,6 +76,18 @@ function main() {
         msg.reply.text('Welcome! Use the inline function to find cards!');
     });
 
+
+    bot.on(['/forcecacheoff'], (msg) => {
+        caching = false;
+        msg.reply.text('Force-caching is now off');
+    });
+
+    bot.on(['/forcecacheon'], (msg) => {
+        caching = true;
+        msg.reply.text('Force-caching is now on');
+    });
+
+
     // If used like @ygowikibot <query>
     bot.on('inlineQuery', (msg) => {
 
@@ -81,7 +95,10 @@ function main() {
 
         // Create a new answer list object
         const answers = bot.answerList(msg.id, {
-            cacheTime: 1
+            cacheTime: 1,
+            cache_time: 1,
+            isPersonal: true,
+            is_personal: true,
         });
 
         // Search for the given query
@@ -102,18 +119,22 @@ function main() {
             for (let i = 0; i < length; i++) {
 
                 // Extract fields from item
-                let cur = items[i]
+                let cur = items[i];
                 let id = cur.id;
                 let filename = id + '.jpg';
-                let url = PIC_URL + filename;
-                let small_url = PIC_SMALL_URL + filename;
+
+                let urlsuffix = caching ? '?_=' + (+new Date()) : '';
+
+                let url = PIC_URL + filename + urlsuffix;
+                let small_url = PIC_SMALL_URL + filename + urlsuffix;
+
                 let name = cur.name;
                 let type = cur.type;
                 let race = cur.race;
                 let desc = cur.desc;
                 let ban_tcg = cur.ban_tcg;
-                caption = name + '\n' + race + ' / ' + type + '\n\n' + desc + '\n\n' + 'Ban status: '
-                caption += ban_tcg ? ban_tcg : 'Unlimited'
+                caption = name + '\n' + race + ' / ' + type + '\n\n' + desc + '\n\n' + 'Ban status: ';
+                caption += ban_tcg ? ban_tcg : 'Unlimited';
 
                 // Generate photo object and prepare to get send
                 answers.addPhoto({

@@ -32,28 +32,46 @@ function safejoin() {
 }
 
 
-function cache(directory, urlbase) {
+function cache(dirs, urlbase) {
+    if (!Array.isArray(dirs)) dirs = [dirs];
+
     return (req, res) => {
 
-        let filename = path.resolve(safejoin(directory, req.params.filename));
-        // todo prevent path traversal
+        let found = false;
 
-        console.log("has file " + filename + " ?");
+        for (let dir of dirs) {
+            let filename = path.resolve(safejoin(dir, req.params.filename));
 
-        if (fs.existsSync(filename)) {
-            console.log("yes!");
-
-            res.sendFile(filename);
-        } else {
-
-            let url = urlbase + req.params.filename;
-            console.log("download " + url + " to " + directory);
-
-            download(url, directory).then(() => {
+            console.log("has file " + filename + " ?");
+    
+            if (fs.existsSync(filename)) {
+                console.log("yes!");
+    
                 res.sendFile(filename);
+                found = true;
+                break;
+            } else {
+                console.log("no");
+            }
+        }
+
+        if (!found) {
+            let dir = dirs[0];
+            let filename = path.resolve(safejoin(dir, req.params.filename));
+    
+            let url = urlbase + req.params.filename;
+            console.log("download " + url + " to " + dir);
+   
+            let pre = moment();
+            download(url, dir).then(() => {
+                let post = moment();
+
+                console.log("download " + url + " done after " + moment.duration(post.diff(pre)).as("seconds") + " seconds");
+                res.sendFile(filename);
+    
             }).catch((err) => {
                 console.error(err);
-
+    
                 res.statusCode = 404;
                 res.send("Failed to find: " + err);
             });
@@ -64,7 +82,7 @@ function cache(directory, urlbase) {
 
 
 app.get('/pics/:filename', cache('dist/', PIC_URL));
-app.get('/pics_small/:filename', cache('dist/small/', PIC_SMALL_URL));
+app.get('/pics_small/:filename', cache(['dist/small/', 'dist/'], PIC_SMALL_URL));
 
 
 app.get('/', (req, res) => {
