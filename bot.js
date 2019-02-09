@@ -1,6 +1,13 @@
 const API_URL = 'https://db.ygoprodeck.com/api/v2/cardinfo.php';
-const PIC_URL = 'https://ygoprodeck.com/pics/';
-const PIC_SMALL_URL = 'https://ygoprodeck.com/pics_small/';
+
+
+//const PIC_URL = 'https://ygoprodeck.com/pics/';
+//const PIC_SMALL_URL = 'https://ygoprodeck.com/pics_small/';
+const PIC_URL = 'https://rick-6401.qwpoeriuty.xyz/pics/';
+const PIC_SMALL_URL = 'https://rick-6401.qwpoeriuty.xyz/pics_small/';
+
+
+
 const MAX_ITEMS = 50;
 
 const https = require('https');
@@ -12,24 +19,33 @@ const TeleBot = require('telebot');
  * Search for a keyword in the ygoprodeck database
  */
 function search(keyword) {
+
+    console.log("search for " + keyword);
+
     return new Promise((resolve, reject) => {
+
         let query = '?fname=' + keyword;
         let url = API_URL + query;
+
         let req = https.get(url, (res) => {
             let body = '';
+
             res.on('data', (chunk) => {
                 body += chunk;
             });
+
             res.on('end', () => {
                 resolve(JSON.parse(body));
             });
-
         });
+
         req.on('error', (err) => {
             console.error(err);
             reject(err);
         });
+
     });
+
 }
 
 
@@ -37,7 +53,7 @@ function search(keyword) {
  * Read the bot token from a file to avoid accidentally uploading it to Github
  */
 function readToken() {
-    return fs.readFileSync('TOKEN', 'utf8').toString();
+    return fs.readFileSync('TOKEN', 'utf8').toString().trim();
 }
 
 
@@ -49,13 +65,19 @@ function main() {
     // Start polling to accept commands
     bot.start();
 
+    bot.getMe().then((data) => console.log("I am @" + data.username));
+
     // Simple greeting
     bot.on(['/start', '/hello'], (msg) => {
+        console.log(msg.from);
+
         msg.reply.text('Welcome! Use the inline function to find cards!');
     });
 
     // If used like @ygowikibot <query>
     bot.on('inlineQuery', (msg) => {
+
+        console.log("issa query: ", msg.query);
 
         // Create a new answer list object
         const answers = bot.answerList(msg.id, {

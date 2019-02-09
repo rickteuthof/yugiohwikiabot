@@ -2,3 +2,4 @@ TOKEN
 .vscode
 
 node_modules
+dist

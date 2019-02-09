@@ -17,7 +17,9 @@
   },
   "homepage": "https://github.com/rickteuthof/yugiohwikiabot#readme",
   "dependencies": {
+    "download": "^7.1.0",
     "express": "^4.16.4",
+    "moment": "^2.24.0",
     "telebot": "^1.2.6"
   }
 }
