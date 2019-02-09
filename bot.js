@@ -1,14 +1,18 @@
-API_URL = 'https://db.ygoprodeck.com/api/v2/cardinfo.php'
-PIC_URL = 'https://ygoprodeck.com/pics/'
-PIC_SMALL_URL = 'https://ygoprodeck.com/pics_small/'
-MAX_ITEMS = 50
+const API_URL = 'https://db.ygoprodeck.com/api/v2/cardinfo.php';
+const PIC_URL = 'https://ygoprodeck.com/pics/';
+const PIC_SMALL_URL = 'https://ygoprodeck.com/pics_small/';
+const MAX_ITEMS = 50;
+
+const https = require('https');
+const fs = require('fs');
+const TeleBot = require('telebot');
+
 
 /**
  * Search for a keyword in the ygoprodeck database
  */
 function search(keyword) {
     return new Promise((resolve, reject) => {
-        const https = require('https');
         let query = '?fname=' + keyword;
         let url = API_URL + query;
         let req = https.get(url, (res) => {
@@ -33,39 +37,48 @@ function search(keyword) {
  * Read the bot token from a file to avoid accidentally uploading it to Github
  */
 function readToken() {
-    const fs = require('fs');
     return fs.readFileSync('TOKEN', 'utf8').toString();
 }
 
 
 function main() {
     // Init bot
-    const TeleBot = require('telebot');
     const token = readToken();
     const bot = new TeleBot(token);
+
     // Start polling to accept commands
     bot.start();
+
     // Simple greeting
     bot.on(['/start', '/hello'], (msg) => {
         msg.reply.text('Welcome! Use the inline function to find cards!');
     });
+
     // If used like @ygowikibot <query>
     bot.on('inlineQuery', (msg) => {
+
         // Create a new answer list object
         const answers = bot.answerList(msg.id, {
             cacheTime: 1
         });
+
         // Search for the given query
         let query = msg.query;
+
         return search(query).then((response) => {
+
             // Don't continue if no response was given
             if (!(Array.isArray(response) && response.length > 0)) {
                 return;
             }
+
             const items = response[0];
+
             // Show at most 10 items
             let length = Math.min(MAX_ITEMS, items.length);
+
             for (let i = 0; i < length; i++) {
+
                 // Extract fields from item
                 let cur = items[i]
                 let id = cur.id;
@@ -79,6 +92,7 @@ function main() {
                 let ban_tcg = cur.ban_tcg;
                 caption = name + '\n' + race + ' / ' + type + '\n\n' + desc + '\n\n' + 'Ban status: '
                 caption += ban_tcg ? ban_tcg : 'Unlimited'
+
                 // Generate photo object and prepare to get send
                 answers.addPhoto({
                     id: id,
@@ -87,12 +101,15 @@ function main() {
                     thumb_url: small_url,
                 });
             }
+
             // DEBUG: Log answers
             console.log(answers);
+
             // Send all answers
             return bot.answerQuery(answers);
         });
     });
 }
+
 
 main();
