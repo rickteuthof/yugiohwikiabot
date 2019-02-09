@@ -13,8 +13,12 @@ function search(keyword) {
         let url = API_URL + query;
         let req = https.get(url, (res) => {
             let body = '';
-            res.on('data', (chunk) => { body += chunk; });
-            res.on('end', () => { resolve(JSON.parse(body)); });
+            res.on('data', (chunk) => {
+                body += chunk;
+            });
+            res.on('end', () => {
+                resolve(JSON.parse(body));
+            });
 
         });
         req.on('error', (err) => {
@@ -48,7 +52,9 @@ function main() {
     // If used like @ygowikibot <query>
     bot.on('inlineQuery', (msg) => {
         // Create a new answer list object
-        const answers = bot.answerList(msg.id, { cacheTime: 1 });
+        const answers = bot.answerList(msg.id, {
+            cacheTime: 1
+        });
         // Search for the given query
         let query = msg.query;
         return search(query).then((response) => {
